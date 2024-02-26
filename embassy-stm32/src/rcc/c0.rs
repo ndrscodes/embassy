@@ -21,6 +21,9 @@ pub struct Config {
     pub ahb_pre: AHBPrescaler,
     pub apb_pre: APBPrescaler,
     pub ls: super::LsConfig,
+
+    /// Per-peripheral kernel clock selection muxes
+    pub mux: super::mux::ClockMux,
 }
 
 impl Default for Config {
@@ -31,6 +34,7 @@ impl Default for Config {
             ahb_pre: AHBPrescaler::DIV1,
             apb_pre: APBPrescaler::DIV1,
             ls: Default::default(),
+            mux: Default::default(),
         }
     }
 }
@@ -131,6 +135,8 @@ pub(crate) unsafe fn init(config: Config) {
             (freq, freq * 2u32)
         }
     };
+
+    config.mux.init();
 
     set_clocks!(
         hsi: None,

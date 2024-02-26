@@ -11,12 +11,12 @@ use {defmt_rtt as _, panic_probe as _};
 fn main() -> ! {
     info!("Hello World!");
 
-    pac::RCC.ccipr().modify(|w| {
-        w.set_adcsel(pac::rcc::vals::Adcsel::SYS);
-    });
-    pac::RCC.ahb2enr().modify(|w| w.set_adcen(true));
-
-    let p = embassy_stm32::init(Default::default());
+    let mut config = Config::default();
+    {
+        use embassy_stm32::rcc::*;
+        config.rcc.mux.adcsel = mux::Adcsel::SYS;
+    }
+    let p = embassy_stm32::init(config);
 
     let mut adc = Adc::new(p.ADC1, &mut Delay);
     //adc.enable_vref();

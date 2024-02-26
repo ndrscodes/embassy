@@ -1,0 +1,2 @@
+[patch."https://github.com/embassy-rs/stm32-data-generated"]
+stm32-metapac = { path = "/home/dirbaio/embassy/stm32-data/build/stm32-metapac" }

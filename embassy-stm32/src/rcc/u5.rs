@@ -85,6 +85,9 @@ pub struct Config {
     /// See RM0456 § 10.5.4 for a general overview and § 11.4.10 for clock source frequency limits.
     pub voltage_range: VoltageScale,
     pub ls: super::LsConfig,
+
+    /// Per-peripheral kernel clock selection muxes
+    pub mux: super::mux::ClockMux,
 }
 
 impl Default for Config {
@@ -104,6 +107,7 @@ impl Default for Config {
             apb3_pre: APBPrescaler::DIV1,
             voltage_range: VoltageScale::RANGE1,
             ls: Default::default(),
+            mux: Default::default(),
         }
     }
 }
@@ -258,6 +262,8 @@ pub(crate) unsafe fn init(config: Config) {
     let (pclk3, _) = super::util::calc_pclk(hclk, config.apb3_pre);
 
     let rtc = config.ls.init();
+
+    config.mux.init();
 
     set_clocks!(
         sys: Some(sys_clk),

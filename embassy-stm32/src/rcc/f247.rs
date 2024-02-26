@@ -95,6 +95,9 @@ pub struct Config {
 
     pub ls: super::LsConfig,
 
+    /// Per-peripheral kernel clock selection muxes
+    pub mux: super::mux::ClockMux,
+
     #[cfg(stm32f2)]
     pub voltage: VoltageScale,
 }
@@ -120,6 +123,7 @@ impl Default for Config {
 
             #[cfg(stm32f2)]
             voltage: VoltageScale::Range3,
+            mux: Default::default(),
         }
     }
 }
@@ -255,6 +259,8 @@ pub(crate) unsafe fn init(config: Config) {
         w.set_ppre2(config.apb2_pre);
     });
     while RCC.cfgr().read().sws() != config.sys {}
+
+    config.mux.init();
 
     set_clocks!(
         hsi: hsi,

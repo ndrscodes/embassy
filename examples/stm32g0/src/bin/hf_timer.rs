@@ -4,7 +4,6 @@
 use defmt::info;
 use embassy_executor::Spawner;
 use embassy_stm32::gpio::OutputType;
-use embassy_stm32::pac::rcc::vals::Tim1sel;
 use embassy_stm32::rcc::{Config as RccConfig, PllConfig, PllSource, Pllm, Plln, Pllq, Pllr, Sysclk};
 use embassy_stm32::time::khz;
 use embassy_stm32::timer::complementary_pwm::{ComplementaryPwm, ComplementaryPwmPin};
@@ -16,7 +15,9 @@ use {defmt_rtt as _, panic_probe as _};
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     let mut rcc_config = RccConfig::default();
-    rcc_config.sys = Sysclk::PLL(PllConfig {
+
+    let mut config = PeripheralConfig::default();
+    config.rcc.sys = Sysclk::PLL(PllConfig {
         source: PllSource::HSI,
         m: Pllm::DIV1,
         n: Plln::MUL16,
@@ -25,16 +26,13 @@ async fn main(_spawner: Spawner) {
         p: None,
     });
 
-    let mut peripheral_config = PeripheralConfig::default();
-    peripheral_config.rcc = rcc_config;
-
-    let p = embassy_stm32::init(peripheral_config);
-
     // configure TIM1 mux to select PLLQ as clock source
     // https://www.st.com/resource/en/reference_manual/rm0444-stm32g0x1-advanced-armbased-32bit-mcus-stmicroelectronics.pdf
     // RM0444 page 210
     // RCC - Peripherals Independent Clock Control Register - bit 22 -> 1
-    pac::RCC.ccipr().modify(|w| w.set_tim1sel(Tim1sel::PLL1_Q));
+    config.rcc.mux.tim1sel = embassy_stm32::rcc::mux::Tim1sel::PLL1_Q;
+
+    let p = embassy_stm32::init(config);
 
     let ch1 = PwmPin::new_ch1(p.PA8, OutputType::PushPull);
     let ch1n = ComplementaryPwmPin::new_ch1(p.PA7, OutputType::PushPull);

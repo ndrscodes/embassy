@@ -379,7 +379,7 @@ fn main() {
 
     let mut clock_names = BTreeSet::new();
 
-    let mut rcc_cfgr_regs = BTreeSet::new();
+    let mut muxes = BTreeSet::new();
 
     for p in METADATA.peripherals {
         if !singletons.contains(&p.name.to_string()) {
@@ -459,7 +459,7 @@ fn main() {
                     let field_name = format_ident!("{}", field_name);
                     let enum_name = format_ident!("{}", enum_name);
 
-                    rcc_cfgr_regs.insert((fieldset_name.clone(), field_name.clone(), enum_name.clone()));
+                    muxes.insert((fieldset_name.clone(), field_name.clone(), enum_name.clone()));
 
                     let match_arms: TokenStream = enumm
                         .variants
@@ -543,69 +543,60 @@ fn main() {
         }
     }
 
-    if !rcc_cfgr_regs.is_empty() {
-        println!("cargo:rustc-cfg=clock_mux");
+    let struct_fields: Vec<_> = muxes
+        .iter()
+        .map(|(_fieldset, fieldname, enum_name)| {
+            quote! {
+                pub #fieldname: #enum_name
+            }
+        })
+        .collect();
 
-        let struct_fields: Vec<_> = rcc_cfgr_regs
+    let mut inits = TokenStream::new();
+    for fieldset in muxes.iter().map(|(f, _, _)| f).collect::<BTreeSet<_>>().into_iter() {
+        let setters: Vec<_> = muxes
             .iter()
-            .map(|(_fieldset, fieldname, enum_name)| {
-                quote! {
-                    pub #fieldname: Option<#enum_name>
-                }
-            })
-            .collect();
-
-        let field_names: Vec<_> = rcc_cfgr_regs
-            .iter()
-            .map(|(_fieldset, fieldname, _enum_name)| fieldname)
-            .collect();
-
-        let inits: Vec<_> = rcc_cfgr_regs
-            .iter()
-            .map(|(fieldset, fieldname, _enum_name)| {
+            .filter(|(f, _, _)| f == fieldset)
+            .map(|(_, fieldname, _)| {
                 let setter = format_ident!("set_{}", fieldname);
                 quote! {
-                    match self.#fieldname {
-                        None => {}
-                        Some(val) => {
-                            crate::pac::RCC.#fieldset()
-                                .modify(|w| w.#setter(val));
-                        }
-                    };
+                    w.#setter(self.#fieldname);
                 }
             })
             .collect();
 
-        let enum_names: BTreeSet<_> = rcc_cfgr_regs
-            .iter()
-            .map(|(_fieldset, _fieldname, enum_name)| enum_name)
-            .collect();
+        inits.extend(quote! {
+            crate::pac::RCC.#fieldset().modify(|w| {
+                #(#setters)*
+            });
+        })
+    }
 
-        g.extend(quote! {
-            pub mod mux {
-                #(pub use crate::pac::rcc::vals::#enum_names as #enum_names; )*
+    let enum_names: BTreeSet<_> = muxes.iter().map(|(_, _, enum_name)| enum_name).collect();
 
-                #[derive(Clone, Copy)]
-                pub struct ClockMux {
-                    #( #struct_fields, )*
-                }
+    g.extend(quote! {
+        pub mod mux {
+            #(pub use crate::pac::rcc::vals::#enum_names as #enum_names; )*
 
-                impl Default for ClockMux {
-                    fn default() -> Self {
-                        Self {
-                            #( #field_names: None, )*
-                        }
-                    }
-                }
+            #[derive(Clone, Copy)]
+            pub struct ClockMux {
+                #( #struct_fields, )*
+            }
 
-                impl ClockMux {
-                    pub fn init(self) {
-                        #( #inits )*
-                    }
+            impl Default for ClockMux {
+                fn default() -> Self {
+                    // safety: zero value is valid for all PAC enums.
+                    unsafe { ::core::mem::zeroed() }
                 }
             }
-        });
-    }
+
+            impl ClockMux {
+                pub(crate) fn init(&self) {
+                    #inits
+                }
+            }
+        }
+    });
 
     // Generate RCC
     clock_names.insert("sys".to_string());

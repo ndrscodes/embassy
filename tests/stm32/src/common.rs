@@ -485,7 +485,7 @@ pub fn config() -> Config {
         config.rcc.apb3_pre = APBPrescaler::DIV2; // 100 Mhz
         config.rcc.apb4_pre = APBPrescaler::DIV2; // 100 Mhz
         config.rcc.voltage_scale = VoltageScale::Scale1;
-        config.rcc.adc_clock_source = AdcClockSource::PLL2_P;
+        config.rcc.mux.adcsel = mux::Adcsel::PLL2_P;
         #[cfg(any(feature = "stm32h755zi"))]
         {
             config.rcc.supply_config = SupplyConfig::DirectSMPS;
@@ -521,7 +521,7 @@ pub fn config() -> Config {
         config.rcc.apb3_pre = APBPrescaler::DIV2; // 140 Mhz
         config.rcc.apb4_pre = APBPrescaler::DIV2; // 140 Mhz
         config.rcc.voltage_scale = VoltageScale::Scale0;
-        config.rcc.adc_clock_source = AdcClockSource::PLL2_P;
+        config.rcc.mux.adcsel = mux::Adcsel::PLL2_P;
     }
 
     #[cfg(any(feature = "stm32l496zg", feature = "stm32l4a6zg", feature = "stm32l4r5zi"))]
@@ -595,10 +595,7 @@ pub fn config() -> Config {
     {
         use embassy_stm32::rcc::*;
         config.rcc.sys = Sysclk::HSI;
-
-        embassy_stm32::pac::RCC.ccipr2().write(|w| {
-            w.set_rngsel(embassy_stm32::pac::rcc::vals::Rngsel::HSI);
-        });
+        config.rcc.mux.rng = mux::Rngsel::HSI;
     }
 
     #[cfg(feature = "stm32l073rz")]

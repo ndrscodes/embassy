@@ -41,14 +41,11 @@ async fn main(_spawner: Spawner) {
         config.rcc.apb3_pre = APBPrescaler::DIV4;
         config.rcc.sys = Sysclk::PLL1_P;
         config.rcc.voltage_scale = VoltageScale::Scale0;
+        config.rcc.mux.usbsel = mux::Usbsel::HSI48;
     }
     let p = embassy_stm32::init(config);
 
     info!("Hello World!");
-
-    pac::RCC.ccipr4().write(|w| {
-        w.set_usbsel(pac::rcc::vals::Usbsel::HSI48);
-    });
 
     // Create the driver, from the HAL.
     let driver = Driver::new(p.USB, Irqs, p.PA12, p.PA11);
